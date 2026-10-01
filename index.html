@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchRender AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">ArchRender <span>AI</span></div>
+
+    <nav>
+        <a href="#render">AI Render</a>
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+    </nav>
+
+    <button class="login-btn">Sign in</button>
+</header>
+
+<main>
+
+    <section class="hero">
+        <div class="badge">AI ARCHITECTURAL VISUALIZATION</div>
+
+        <h1>
+            SketchUp to reality.<br>
+            <span>Powered by AI.</span>
+        </h1>
+
+        <p>
+            Transform your SketchUp designs into photorealistic
+            architectural renders in seconds while preserving
+            your original design.
+        </p>
+
+        <a href="#render" class="start-btn">
+            Start Rendering →
+        </a>
+    </section>
+
+    <section id="render" class="render-section">
+
+        <div class="section-title">
+            <span>ARCHRENDER AI</span>
+            <h2>Create your render</h2>
+            <p>Upload your SketchUp image and let AI bring it to life.</p>
+        </div>
+
+        <div class="workspace">
+
+            <div class="upload-card">
+                <div class="upload-icon">↑</div>
+                <h3>Upload SketchUp Image</h3>
+                <p>Drag & drop your image here</p>
+
+                <label class="upload-btn">
+                    Choose Image
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+                </label>
+
+                <small>JPG, PNG • Max 10 MB</small>
+            </div>
+
+            <div class="arrow">→</div>
+
+            <div class="result-card" id="resultCard">
+                <div class="result-icon">✦</div>
+                <h3>Photorealistic Render</h3>
+                <p id="resultText">Your AI render will appear here</p>
+
+                <button
+                    id="downloadBtn"
+                    style="
+                        display:none;
+                        margin:18px auto 5px;
+                        padding:13px 24px;
+                        border:none;
+                        border-radius:10px;
+                        cursor:pointer;
+                        font-weight:700;
+                    "
+                >
+                    ↓ Download Render
+                </button>
+            </div>
+
+        </div>
+
+        <button id="generateBtn" class="generate-btn">
+            ✦ Generate Render
+        </button>
+
+    </section>
+
+</main>
+
+<footer>
+    <div>ArchRender AI</div>
+    <p>AI-powered architectural visualization.</p>
+</footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const input = document.getElementById("imageInput");
+    const generateBtn = document.getElementById("generateBtn");
+    const resultCard = document.getElementById("resultCard");
+    const resultText = document.getElementById("resultText");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let currentRenderURL = null;
+
+
+    // Preview uploaded SketchUp image
+    input.addEventListener("change", function () {
+
+        const file = this.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+
+            let preview = document.getElementById("imagePreview");
+
+            if (!preview) {
+
+                preview = document.createElement("img");
+                preview.id = "imagePreview";
+
+                preview.style.width = "100%";
+                preview.style.maxHeight = "420px";
+                preview.style.objectFit = "contain";
+                preview.style.borderRadius = "18px";
+                preview.style.marginTop = "15px";
+
+                document
+                    .querySelector(".upload-card")
+                    .appendChild(preview);
+            }
+
+            preview.src = e.target.result;
+        };
+
+        reader.readAsDataURL(file);
+    });
+
+
+    // Generate AI render
+    generateBtn.addEventListener("click", async function () {
+
+        const file = input.files[0];
+
+        if (!file) {
+            alert("Please choose a SketchUp image first.");
+            return;
+        }
+
+        generateBtn.disabled = true;
+        generateBtn.textContent = "✦ Rendering...";
+
+        resultText.textContent =
+            "ArchRender AI is generating your render...";
+
+        downloadBtn.style.display = "none";
+
+        const formData = new FormData();
+        formData.append("image", file);
+
+        try {
+
+            const response = await fetch(
+                "http://127.0.0.1:8000/render",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("Render failed");
+            }
+
+            const blob = await response.blob();
+
+            // Remove previous temporary render URL
+            if (currentRenderURL) {
+                URL.revokeObjectURL(currentRenderURL);
+            }
+
+            currentRenderURL = URL.createObjectURL(blob);
+
+            let renderImage =
+                document.getElementById("renderImage");
+
+            if (!renderImage) {
+
+                renderImage = document.createElement("img");
+                renderImage.id = "renderImage";
+
+                renderImage.style.width = "100%";
+                renderImage.style.maxHeight = "420px";
+                renderImage.style.objectFit = "contain";
+                renderImage.style.borderRadius = "18px";
+
+                resultCard.insertBefore(
+                    renderImage,
+                    downloadBtn
+                );
+            }
+
+            renderImage.src = currentRenderURL;
+
+            resultText.textContent = "Render completed ✓";
+
+            generateBtn.textContent =
+                "✦ Generate Another Render";
+
+            downloadBtn.style.display = "block";
+
+        } catch (error) {
+
+            console.error(error);
+
+            resultText.textContent =
+                "Render failed. Please try again.";
+
+            generateBtn.textContent =
+                "✦ Generate Render";
+
+            downloadBtn.style.display = "none";
+
+        } finally {
+
+            generateBtn.disabled = false;
+
+        }
+
+    });
+
+
+    // Download generated render
+    downloadBtn.addEventListener("click", function () {
+
+        if (!currentRenderURL) return;
+
+        const link = document.createElement("a");
+
+        link.href = currentRenderURL;
+        link.download = "ArchRender-AI-Render.png";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    });
+
+});
+</script>
+
+</body>
+</html>
