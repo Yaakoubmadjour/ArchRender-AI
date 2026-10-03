@@ -2,8 +2,8 @@ import os
 import io
 import base64
 import requests
-
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import time
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -23,108 +23,56 @@ MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
 
 
 PROMPT = """
-Convert the provided SketchUp screenshot into a premium,
-high-end photorealistic architectural visualization.
+Transform the provided SketchUp image into a highly photorealistic architectural visualization.
 
-ABSOLUTE PRIORITY — PRESERVE THE SOURCE IMAGE:
+ABSOLUTE PRESERVATION RULES:
+The input image is the authoritative design reference.
 
-Keep exactly the same:
-- camera position
-- camera angle
-- perspective and field of view
-- room dimensions
-- architectural geometry
-- walls
-- ceiling
-- floor
-- doors and openings
-- windows
-- columns and partitions
-- furniture positions
-- furniture dimensions and proportions
-- tables
-- chairs
-- cabinets
-- shelves
-- all visible objects
-- complete spatial composition
-
-The source image must remain clearly recognizable
-as exactly the same architectural project.
+STRICTLY preserve:
+- exact camera position, angle, framing and perspective
+- exact room geometry, dimensions and proportions
+- exact walls, ceiling and floor geometry
+- exact doors, windows, openings, arches and stairs
+- exact furniture count, position, size, shape and orientation
+- exact cabinets, partitions and built-in elements
+- exact decorative objects and their positions
+- exact composition and spatial layout
 
 DO NOT:
-- redesign the interior
-- change the architecture
-- change the layout
-- move furniture
+- add any new object
+- remove any existing object
+- move any object
 - replace furniture
-- add furniture
-- remove furniture
-- add architectural elements
-- remove architectural elements
-- change camera perspective
-- distort walls or proportions
-- crop important parts of the original composition
+- redesign furniture
+- change architectural geometry
+- invent doors, windows, stairs, lamps or decorations
+- modify the camera or perspective
+- reinterpret unclear areas with new architectural elements
 
-ONLY transform the visual quality and materials.
+Only improve visual appearance:
+- realistic materials and textures
+- realistic lighting
+- realistic reflections
+- realistic shadows
+- realistic fabric, wood, stone, glass and metal
+- natural global illumination
+- balanced exposure and white balance
+- professional architectural photography
+- photorealistic details
 
-RENDER QUALITY:
+The task is MATERIAL AND LIGHTING VISUALIZATION ONLY.
+It is NOT a redesign task.
 
-Create a highly realistic professional architectural render
-with physically believable PBR materials.
-
-Use:
-- detailed natural wood grain
-- realistic painted plaster walls
-- realistic stone and ceramic surfaces
-- realistic flooring
-- realistic metal
-- physically accurate glass reflections
-- realistic upholstery and fabrics
-- subtle surface imperfections
-- fine material micro-texture
-- realistic roughness and reflections
-- accurate contact shadows
-- ambient occlusion
-
-LIGHTING:
-
-Use premium architectural photography lighting:
-- soft natural daylight
-- physically realistic global illumination
-- realistic indirect bounced light
-- soft natural shadows
-- balanced highlights
-- controlled contrast
-- realistic exposure
-- neutral white balance
-- no blown highlights
-- no excessive darkness
-- natural interior atmosphere
-
-IMAGE QUALITY:
-
-Ultra photorealistic.
-High-end architectural visualization.
-Professional interior photography.
-Extremely detailed materials.
-Clean sharp edges.
-Fine realistic textures.
-Natural depth.
-Realistic reflections.
-Realistic shadows.
-High dynamic range.
-Crisp professional image quality.
-
-The final result should look like a photograph of the
-original SketchUp project after professional construction,
-NOT like a redesigned AI-generated room.
+If the user requests a change that conflicts with preservation of geometry,
+layout, furniture placement or architectural elements, ignore that part of
+the request and preserve the original image.
 """
 
 
 app = FastAPI(title="ArchRender AI")
 
-
+RATE_LIMIT_SECONDS = 60
+last_request_time = {}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -145,8 +93,18 @@ def home():
 
 
 @app.post("/render")
-async def render(image: UploadFile = File(...)):
+async def render(request: Request, image: UploadFile = File(...), prompt: str = Form("")):
+    client_ip = request.client.host
+    current_time = time.time()
 
+    if client_ip in last_request_time:
+        if current_time - last_request_time[client_ip] < RATE_LIMIT_SECONDS:
+            raise HTTPException(
+                status_code=429,
+                detail="Please wait 60 seconds before generating another render."
+            )
+
+    last_request_time[client_ip] = current_time
     try:
 
         image_bytes = await image.read()
@@ -170,9 +128,9 @@ async def render(image: UploadFile = File(...)):
                 image.content_type or "image/png"
             )
         }
-
+        user_request = prompt.strip()[:1000]
         data = {
-            "prompt": PROMPT,
+            "prompt": PROMPT + "\n\nUSER VISUAL REQUEST:\n" + user_request + "\n\nIMPORTANT: The user request may change ONLY materials, colors, lighting, atmosphere and visual style. Never change geometry, camera, perspective, walls, openings, furniture positions, proportions or layout.",
             "width": "1536",
             "height": "1024"
         }
