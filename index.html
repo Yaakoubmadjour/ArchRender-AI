@@ -18,7 +18,7 @@
         <a href="#pricing">Pricing</a>
     </nav>
 
-    <button class="login-btn">Sign in</button>
+    <button class="login-btn" id="loginBtn">Sign in</button>
 </header>
 
 <main>
@@ -37,12 +37,15 @@
             your original design.
         </p>
 
-        <a href="#render" class="start-btn">
+        <a href="#render" class="start-btn" id="startBtn">
             Start Rendering →
         </a>
     </section>
 
-    <section id="render" class="render-section">
+
+    <!-- HIDDEN UNTIL USER SIGNS IN -->
+
+    <section id="render" class="render-section" style="display:none;">
 
         <div class="section-title">
             <span>ARCHRENDER AI</span>
@@ -53,27 +56,48 @@
         <div class="workspace">
 
             <div class="upload-card">
+
                 <div class="upload-icon">↑</div>
+
                 <h3>Upload SketchUp Image</h3>
                 <p>Drag & drop your image here</p>
 
                 <label class="upload-btn">
                     Choose Image
-                    <input type="file" id="imageInput" accept="image/*" hidden>
+                    <input
+                        type="file"
+                        id="imageInput"
+                        accept="image/*"
+                        hidden
+                    >
                 </label>
 
                 <small>JPG, PNG • Max 10 MB</small>
-                <p class="prompt-label">Describe your vision</p>
-<textarea id="userPrompt" placeholder="Describe materials, colors, lighting or style..."></textarea>
+
+                <p class="prompt-label">
+                    Describe your vision
+                </p>
+
+                <textarea
+                    id="userPrompt"
+                    placeholder="Describe materials, colors, lighting or style..."
+                ></textarea>
 
             </div>
 
+
             <div class="arrow">→</div>
 
+
             <div class="result-card" id="resultCard">
+
                 <div class="result-icon">✦</div>
+
                 <h3>Photorealistic Render</h3>
-                <p id="resultText">Your AI render will appear here</p>
+
+                <p id="resultText">
+                    Your AI render will appear here
+                </p>
 
                 <button
                     id="downloadBtn"
@@ -89,9 +113,11 @@
                 >
                     ↓ Download Render
                 </button>
+
             </div>
 
         </div>
+
 
         <button id="generateBtn" class="generate-btn">
             ✦ Generate Render
@@ -101,169 +127,800 @@
 
 </main>
 
+
 <footer>
     <div>ArchRender AI</div>
     <p>AI-powered architectural visualization.</p>
 </footer>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
 
-    const input = document.getElementById("imageInput");
-    const generateBtn = document.getElementById("generateBtn");
-    const resultCard = document.getElementById("resultCard");
-    const resultText = document.getElementById("resultText");
-    const downloadBtn = document.getElementById("downloadBtn");
+<!-- AUTH MODAL -->
+
+<div id="authModal">
+
+    <div class="auth-box">
+
+        <h2>Welcome to ArchRender AI</h2>
+
+        <p>Sign in or create your account</p>
+
+        <input
+            type="email"
+            id="authEmail"
+            placeholder="Email address"
+        >
+
+        <input
+            type="password"
+            id="authPassword"
+            placeholder="Password"
+        >
+
+        <button id="signInBtn">
+            Sign In
+        </button>
+
+        <button id="signUpBtn">
+            Create Account
+        </button>
+
+        <p id="authMessage"></p>
+
+    </div>
+
+</div>
+
+
+<!-- SUPABASE -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+const SUPABASE_URL =
+    "https://trnlloofjclevdndwgkb.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_ccRQVjOPNr-LfKdXOrm_1g_Qj4OcY5G";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+document.addEventListener("DOMContentLoaded", async function () {
+
+
+    /* =========================
+       ELEMENTS
+    ========================= */
+
+    const input =
+        document.getElementById("imageInput");
+
+    const generateBtn =
+        document.getElementById("generateBtn");
+
+    const resultCard =
+        document.getElementById("resultCard");
+
+    const resultText =
+        document.getElementById("resultText");
+
+    const downloadBtn =
+        document.getElementById("downloadBtn");
+
+    const userPrompt =
+        document.getElementById("userPrompt");
+
+    const loginBtn =
+        document.getElementById("loginBtn");
+
+    const startBtn =
+        document.getElementById("startBtn");
+
+    const renderSection =
+        document.getElementById("render");
+
+    const authModal =
+        document.getElementById("authModal");
+
+    const authEmail =
+        document.getElementById("authEmail");
+
+    const authPassword =
+        document.getElementById("authPassword");
+
+    const authMessage =
+        document.getElementById("authMessage");
+
+    const signInBtn =
+        document.getElementById("signInBtn");
+
+    const signUpBtn =
+        document.getElementById("signUpBtn");
+
 
     let currentRenderURL = null;
+    let currentUser = null;
 
 
-    // Preview uploaded SketchUp image
-    input.addEventListener("change", function () {
+    /* =========================
+       AUTH UI
+    ========================= */
 
-        const file = this.files[0];
-        if (!file) return;
+    function showLoggedOut() {
 
-        const reader = new FileReader();
+        currentUser = null;
 
-        reader.onload = function (e) {
+        renderSection.style.display =
+            "none";
 
-            let preview = document.getElementById("imagePreview");
+        loginBtn.textContent =
+            "Sign in";
 
-            if (!preview) {
+    }
 
-                preview = document.createElement("img");
-                preview.id = "imagePreview";
 
-                preview.style.width = "100%";
-                preview.style.maxHeight = "420px";
-                preview.style.objectFit = "contain";
-                preview.style.borderRadius = "18px";
-                preview.style.marginTop = "15px";
+    function showLoggedIn(user) {
 
-                document
-                    .querySelector(".upload-card")
-                    .appendChild(preview);
+        currentUser = user;
+
+        renderSection.style.display =
+            "block";
+
+        loginBtn.textContent =
+            "Account ✓";
+
+    }
+
+
+    /* =========================
+       CHECK EXISTING SESSION
+    ========================= */
+
+    const { data: sessionData } =
+        await supabaseClient.auth.getSession();
+
+
+    if (sessionData.session) {
+
+        showLoggedIn(
+            sessionData.session.user
+        );
+
+    } else {
+
+        showLoggedOut();
+
+    }
+
+
+    /* =========================
+       AUTH STATE CHANGES
+    ========================= */
+
+    supabaseClient.auth.onAuthStateChange(
+        function (event, session) {
+
+            if (session) {
+
+                showLoggedIn(
+                    session.user
+                );
+
+            } else {
+
+                showLoggedOut();
+
             }
 
-            preview.src = e.target.result;
-        };
-
-        reader.readAsDataURL(file);
-    });
-
-
-    // Generate AI render
-    generateBtn.addEventListener("click", async function () {
-
-        const file = input.files[0];
-
-        if (!file) {
-            alert("Please choose a SketchUp image first.");
-            return;
         }
+    );
 
-        generateBtn.disabled = true;
-        generateBtn.textContent = "✦ Rendering...";
 
-        resultText.textContent =
-            "ArchRender AI is generating your render...";
+    /* =========================
+       SIGN IN / ACCOUNT BUTTON
+    ========================= */
 
-        downloadBtn.style.display = "none";
+    loginBtn.addEventListener(
+        "click",
+        async function () {
 
-        const formData = new FormData();
-        formData.append("image", file);
-        formData.append("prompt", document.getElementById("userPrompt").value.trim());
+            if (currentUser) {
 
-        try {
+                const confirmLogout =
+                    confirm(
+                        "Do you want to sign out?"
+                    );
 
-            const response = await fetch(
-                "https://archrender-ai-bp7m.onrender.com/render",
-                {
-                    method: "POST",
-                    body: formData
+
+                if (!confirmLogout) {
+                    return;
                 }
+
+
+                await supabaseClient.auth.signOut();
+
+                showLoggedOut();
+
+                return;
+
+            }
+
+
+            authEmail.value = "";
+            authPassword.value = "";
+            authMessage.textContent = "";
+
+            authModal.style.display =
+                "flex";
+
+        }
+    );
+
+
+    /* =========================
+       START RENDERING
+    ========================= */
+
+    startBtn.addEventListener(
+        "click",
+        function (event) {
+
+            event.preventDefault();
+
+
+            if (!currentUser) {
+
+                authEmail.value = "";
+                authPassword.value = "";
+
+                authMessage.textContent =
+                    "Sign in to start rendering.";
+
+                authModal.style.display =
+                    "flex";
+
+                return;
+
+            }
+
+
+            renderSection.scrollIntoView({
+                behavior: "smooth"
+            });
+
+        }
+    );
+
+
+    /* =========================
+       CREATE ACCOUNT
+    ========================= */
+
+    signUpBtn.addEventListener(
+        "click",
+        async function () {
+
+            const email =
+                authEmail.value.trim();
+
+            const password =
+                authPassword.value;
+
+
+            if (!email || !password) {
+
+                authMessage.textContent =
+                    "Please enter your email and password.";
+
+                return;
+
+            }
+
+
+            authMessage.textContent =
+                "Creating account...";
+
+
+            const { error } =
+                await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+
+            if (error) {
+
+                authMessage.textContent =
+                    error.message;
+
+                return;
+
+            }
+
+
+            authMessage.textContent =
+                "Account created! Check your email to confirm.";
+
+        }
+    );
+
+
+    /* =========================
+       SIGN IN
+    ========================= */
+
+    signInBtn.addEventListener(
+        "click",
+        async function () {
+
+            const email =
+                authEmail.value.trim();
+
+            const password =
+                authPassword.value;
+
+
+            if (!email || !password) {
+
+                authMessage.textContent =
+                    "Please enter your email and password.";
+
+                return;
+
+            }
+
+
+            authMessage.textContent =
+                "Signing in...";
+
+
+            const { data, error } =
+                await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+
+            if (error) {
+
+                authMessage.textContent =
+                    error.message;
+
+                return;
+
+            }
+
+
+            showLoggedIn(
+                data.user
             );
 
-            if (!response.ok) {
-                throw new Error("Render failed");
-            }
 
-            const blob = await response.blob();
+            authMessage.textContent =
+                "Signed in successfully!";
 
-            // Remove previous temporary render URL
-            if (currentRenderURL) {
-                URL.revokeObjectURL(currentRenderURL);
-            }
 
-            currentRenderURL = URL.createObjectURL(blob);
+            setTimeout(
+                function () {
 
-            let renderImage =
-                document.getElementById("renderImage");
+                    authModal.style.display =
+                        "none";
 
-            if (!renderImage) {
 
-                renderImage = document.createElement("img");
-                renderImage.id = "renderImage";
+                    renderSection.scrollIntoView({
+                        behavior: "smooth"
+                    });
 
-                renderImage.style.width = "100%";
-                renderImage.style.maxHeight = "420px";
-                renderImage.style.objectFit = "contain";
-                renderImage.style.borderRadius = "18px";
-
-                resultCard.insertBefore(
-                    renderImage,
-                    downloadBtn
-                );
-            }
-
-            renderImage.src = currentRenderURL;
-
-            resultText.textContent = "Render completed ✓";
-
-            generateBtn.textContent =
-                "✦ Generate Another Render";
-
-            downloadBtn.style.display = "block";
-
-        } catch (error) {
-
-            console.error(error);
-
-            resultText.textContent =
-                "Render failed. Please try again.";
-
-            generateBtn.textContent =
-                "✦ Generate Render";
-
-            downloadBtn.style.display = "none";
-
-        } finally {
-
-            generateBtn.disabled = false;
+                },
+                500
+            );
 
         }
+    );
 
-    });
+
+    /* =========================
+       IMAGE PREVIEW
+    ========================= */
+
+    input.addEventListener(
+        "change",
+        function () {
+
+            const file =
+                this.files[0];
 
 
-    // Download generated render
-    downloadBtn.addEventListener("click", function () {
+            if (!file) {
+                return;
+            }
 
-        if (!currentRenderURL) return;
 
-        const link = document.createElement("a");
+            const reader =
+                new FileReader();
 
-        link.href = currentRenderURL;
-        link.download = "ArchRender-AI-Render.png";
 
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            reader.onload =
+                function (e) {
 
-    });
+                    let preview =
+                        document.getElementById(
+                            "imagePreview"
+                        );
+
+
+                    if (!preview) {
+
+                        preview =
+                            document.createElement(
+                                "img"
+                            );
+
+
+                        preview.id =
+                            "imagePreview";
+
+                        preview.style.width =
+                            "100%";
+
+                        preview.style.maxHeight =
+                            "420px";
+
+                        preview.style.objectFit =
+                            "contain";
+
+                        preview.style.borderRadius =
+                            "18px";
+
+                        preview.style.marginTop =
+                            "15px";
+
+
+                        document
+                            .querySelector(
+                                ".upload-card"
+                            )
+                            .appendChild(
+                                preview
+                            );
+
+                    }
+
+
+                    preview.src =
+                        e.target.result;
+
+                };
+
+
+            reader.readAsDataURL(
+                file
+            );
+
+        }
+    );
+
+
+    /* =========================
+       GENERATE AI RENDER
+    ========================= */
+
+    generateBtn.addEventListener(
+        "click",
+        async function () {
+
+
+            /* USER MUST BE LOGGED IN */
+
+            if (!currentUser) {
+
+                renderSection.style.display =
+                    "none";
+
+                authMessage.textContent =
+                    "Please sign in to generate a render.";
+
+                authModal.style.display =
+                    "flex";
+
+                return;
+
+            }
+
+
+            const file =
+                input.files[0];
+
+
+            if (!file) {
+
+                alert(
+                    "Please choose a SketchUp image first."
+                );
+
+                return;
+
+            }
+
+
+            generateBtn.disabled =
+                true;
+
+            generateBtn.textContent =
+                "✦ Rendering...";
+
+
+            resultText.textContent =
+                "ArchRender AI is generating your render...";
+
+
+            downloadBtn.style.display =
+                "none";
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "image",
+                file
+            );
+
+
+            formData.append(
+                "prompt",
+                userPrompt.value.trim()
+            );
+
+
+            try {
+
+
+                /* =========================
+                   GET SUPABASE ACCESS TOKEN
+                ========================= */
+
+                const { data: authData, error: sessionError } =
+                    await supabaseClient.auth.getSession();
+
+
+                if (
+                    sessionError ||
+                    !authData.session
+                ) {
+
+                    showLoggedOut();
+
+                    throw new Error(
+                        "Authentication required"
+                    );
+
+                }
+
+
+                const accessToken =
+                    authData.session.access_token;
+
+
+                /* =========================
+                   SEND PROTECTED REQUEST
+                ========================= */
+
+                const response =
+                    await fetch(
+                        "https://archrender-ai-bp7m.onrender.com/render",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Authorization":
+                                    `Bearer ${accessToken}`
+                            },
+
+                            body: formData
+                        }
+                    );
+
+
+                if (response.status === 401) {
+
+                    showLoggedOut();
+
+                    throw new Error(
+                        "Your session has expired. Please sign in again."
+                    );
+
+                }
+
+
+                if (response.status === 429) {
+
+                    const errorData =
+                        await response.json()
+                            .catch(() => null);
+
+
+                    throw new Error(
+                        errorData?.detail ||
+                        "Please wait before generating another render."
+                    );
+
+                }
+
+
+                if (!response.ok) {
+
+                    const errorData =
+                        await response.json()
+                            .catch(() => null);
+
+
+                    throw new Error(
+                        errorData?.detail ||
+                        "Render failed"
+                    );
+
+                }
+
+
+                const blob =
+                    await response.blob();
+
+
+                if (currentRenderURL) {
+
+                    URL.revokeObjectURL(
+                        currentRenderURL
+                    );
+
+                }
+
+
+                currentRenderURL =
+                    URL.createObjectURL(
+                        blob
+                    );
+
+
+                let renderImage =
+                    document.getElementById(
+                        "renderImage"
+                    );
+
+
+                if (!renderImage) {
+
+                    renderImage =
+                        document.createElement(
+                            "img"
+                        );
+
+
+                    renderImage.id =
+                        "renderImage";
+
+                    renderImage.style.width =
+                        "100%";
+
+                    renderImage.style.maxHeight =
+                        "420px";
+
+                    renderImage.style.objectFit =
+                        "contain";
+
+                    renderImage.style.borderRadius =
+                        "18px";
+
+
+                    resultCard.insertBefore(
+                        renderImage,
+                        downloadBtn
+                    );
+
+                }
+
+
+                renderImage.src =
+                    currentRenderURL;
+
+
+                resultText.textContent =
+                    "Render completed ✓";
+
+
+                generateBtn.textContent =
+                    "✦ Generate Another Render";
+
+
+                downloadBtn.style.display =
+                    "block";
+
+            }
+
+
+            catch (error) {
+
+                console.error(
+                    error
+                );
+
+
+                resultText.textContent =
+                    error.message ||
+                    "Render failed. Please try again.";
+
+
+                generateBtn.textContent =
+                    "✦ Generate Render";
+
+
+                downloadBtn.style.display =
+                    "none";
+
+            }
+
+
+            finally {
+
+                generateBtn.disabled =
+                    false;
+
+            }
+
+        }
+    );
+
+
+    /* =========================
+       DOWNLOAD RENDER
+    ========================= */
+
+    downloadBtn.addEventListener(
+        "click",
+        function () {
+
+            if (!currentRenderURL) {
+                return;
+            }
+
+
+            const link =
+                document.createElement(
+                    "a"
+                );
+
+
+            link.href =
+                currentRenderURL;
+
+
+            link.download =
+                "ArchRender-AI-Render.png";
+
+
+            document.body.appendChild(
+                link
+            );
+
+
+            link.click();
+
+
+            document.body.removeChild(
+                link
+            );
+
+        }
+    );
 
 });
+
 </script>
 
 </body>

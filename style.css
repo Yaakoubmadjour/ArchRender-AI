@@ -15,7 +15,9 @@ body {
     min-height: 100vh;
 }
 
-/* HEADER */
+/* =========================
+   HEADER
+========================= */
 
 header {
     height: 76px;
@@ -49,19 +51,28 @@ nav a {
 }
 
 nav a:hover {
-    color: white;
+    color: #ffffff;
 }
 
 .login-btn {
     padding: 10px 20px;
-    border-radius: 8px;
+    border-radius: 9px;
     border: 1px solid #343c4b;
     background: transparent;
-    color: white;
+    color: #ffffff;
     cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
 }
 
-/* HERO */
+.login-btn:hover {
+    border-color: #ff7a1a;
+    background: rgba(255, 122, 26, 0.08);
+}
+
+/* =========================
+   HERO
+========================= */
 
 .hero {
     min-height: 580px;
@@ -72,7 +83,12 @@ nav a:hover {
     text-align: center;
     padding: 80px 20px;
     background:
-        radial-gradient(circle at center, #182236 0%, #0c111c 42%, #080b12 72%);
+        radial-gradient(
+            circle at center,
+            #182236 0%,
+            #0c111c 42%,
+            #080b12 72%
+        );
 }
 
 .badge {
@@ -109,7 +125,7 @@ nav a:hover {
     padding: 15px 27px;
     border-radius: 9px;
     background: #ff7a1a;
-    color: white;
+    color: #ffffff;
     text-decoration: none;
     font-weight: 700;
     transition: 0.2s;
@@ -117,9 +133,12 @@ nav a:hover {
 
 .start-btn:hover {
     transform: translateY(-2px);
+    background: #ff8b38;
 }
 
-/* RENDER WORKSPACE */
+/* =========================
+   RENDER WORKSPACE
+========================= */
 
 .render-section {
     padding: 100px 7%;
@@ -205,6 +224,11 @@ nav a:hover {
     border-radius: 8px;
     cursor: pointer;
     margin-bottom: 15px;
+    transition: 0.2s;
+}
+
+.upload-btn:hover {
+    background: #293243;
 }
 
 .upload-card small {
@@ -224,17 +248,278 @@ nav a:hover {
     border: none;
     border-radius: 10px;
     background: #ff7a1a;
-    color: white;
+    color: #ffffff;
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
+    transition: 0.2s;
 }
 
 .generate-btn:hover {
     background: #ff8b38;
 }
 
-/* FOOTER */
+/* =========================
+   USER PROMPT
+========================= */
+
+.prompt-label {
+    display: block;
+    width: 80%;
+    margin: 18px auto -12px auto;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ff8a00 !important;
+    transform: translateY(40px);
+}
+
+#userPrompt {
+    width: 100%;
+    min-height: 90px;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    transform: translateY(10px);
+    transition: 0.2s;
+}
+
+#userPrompt::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+#userPrompt:focus {
+    border-color: #ff8a00;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* =========================
+   AUTH MODAL
+========================= */
+
+#authModal {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+
+    background: rgba(3, 6, 12, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    z-index: 9999;
+}
+
+#authModal[style*="display: flex"] {
+    display: flex !important;
+}
+
+/* LOGIN CARD */
+
+.auth-box {
+    position: relative;
+
+    width: 100%;
+    max-width: 430px;
+
+    padding: 42px 38px 36px;
+
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(255, 122, 26, 0.08),
+            transparent 38%
+        ),
+        #10151f;
+
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 22px;
+
+    box-shadow:
+        0 30px 90px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(255, 122, 26, 0.03);
+
+    text-align: center;
+}
+
+/* ORANGE DETAIL */
+
+.auth-box::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: 80px;
+    height: 3px;
+
+    background: #ff7a1a;
+    border-radius: 0 0 10px 10px;
+
+    box-shadow: 0 0 20px rgba(255, 122, 26, 0.45);
+}
+
+/* TITLE */
+
+.auth-box h2 {
+    font-size: 27px;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+}
+
+.auth-box > p:first-of-type {
+    color: #8994a7;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 28px;
+}
+
+/* INPUTS */
+
+.auth-box input {
+    display: block;
+
+    width: 100%;
+    height: 52px;
+
+    margin-bottom: 14px;
+    padding: 0 16px;
+
+    border: 1px solid #2b3443;
+    border-radius: 11px;
+
+    background: #0a0f18;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s,
+        background 0.2s;
+}
+
+.auth-box input::placeholder {
+    color: #657083;
+}
+
+.auth-box input:hover {
+    border-color: #3b4658;
+}
+
+.auth-box input:focus {
+    border-color: #ff7a1a;
+    background: #0c121d;
+
+    box-shadow:
+        0 0 0 3px rgba(255, 122, 26, 0.12);
+}
+
+/* SIGN IN BUTTON */
+
+#signInBtn {
+    width: 100%;
+    height: 52px;
+
+    margin-top: 7px;
+
+    border: none;
+    border-radius: 11px;
+
+    background: #ff7a1a;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s,
+        transform 0.2s,
+        box-shadow 0.2s;
+}
+
+#signInBtn:hover {
+    background: #ff8b38;
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 10px 25px rgba(255, 122, 26, 0.18);
+}
+
+#signInBtn:active {
+    transform: translateY(0);
+}
+
+/* CREATE ACCOUNT BUTTON */
+
+#signUpBtn {
+    width: 100%;
+    height: 50px;
+
+    margin-top: 11px;
+
+    border: 1px solid #303949;
+    border-radius: 11px;
+
+    background: transparent;
+    color: #dce2ec;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s,
+        background 0.2s,
+        color 0.2s;
+}
+
+#signUpBtn:hover {
+    border-color: #ff7a1a;
+    background: rgba(255, 122, 26, 0.07);
+    color: #ffffff;
+}
+
+/* AUTH MESSAGE */
+
+#authMessage {
+    min-height: 20px;
+
+    margin-top: 18px;
+
+    color: #aeb7c6;
+
+    font-size: 13px;
+    line-height: 1.45;
+
+    text-align: center;
+}
+
+/* =========================
+   FOOTER
+========================= */
 
 footer {
     border-top: 1px solid #202631;
@@ -253,9 +538,12 @@ footer p {
     font-size: 13px;
 }
 
-/* MOBILE */
+/* =========================
+   MOBILE
+========================= */
 
 @media (max-width: 800px) {
+
     nav {
         display: none;
     }
@@ -275,43 +563,14 @@ footer p {
     .render-section {
         padding: 70px 20px;
     }
-}
-#userPrompt {
-    width: 100%;
-    min-height: 90px;
-    margin-top: 18px;
-    padding: 14px 16px;
-    box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-    font-family: inherit;
-    font-size: 14px;
-    resize: vertical;
-    outline: none;
-}
 
-#userPrompt::placeholder {
-    color: rgba(255, 255, 255, 0.65);
-}
+    .auth-box {
+        max-width: 390px;
+        padding: 36px 24px 30px;
+        border-radius: 18px;
+    }
 
-#userPrompt:focus {
-    border-color: #ff8a00;
-}
-.prompt-label {
-    display: block;
-    width: 80%;
-    margin: 18px auto -12px auto;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: #ff8a00 !important;
-}
-.prompt-label {
-    transform: translateY(40px);
-}
-
-#userPrompt {
-    transform: translateY(10px);
+    .auth-box h2 {
+        font-size: 24px;
+    }
 }
