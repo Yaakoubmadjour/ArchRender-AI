@@ -65,6 +65,7 @@
                 <small>JPG, PNG • Max 10 MB</small>
                 <p class="prompt-label">Describe your vision</p>
 <textarea id="userPrompt" placeholder="Describe materials, colors, lighting or style..."></textarea>
+
             </div>
 
             <div class="arrow">→</div>
@@ -172,7 +173,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const formData = new FormData();
         formData.append("image", file);
-formData.append("prompt", document.getElementById("userPrompt").value.trim());
+        formData.append("prompt", document.getElementById("userPrompt").value.trim());
+
         try {
 
             const response = await fetch(
