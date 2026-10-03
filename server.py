@@ -300,7 +300,7 @@ async def render(
         # -------------------------
 
         url = (
-            f"https://api.cloudflare.com/v4/accounts/"
+            f"https://api.cloudflare.com/client/v4/accounts/"
             f"{ACCOUNT_ID}/ai/run/{MODEL}"
         )
 
