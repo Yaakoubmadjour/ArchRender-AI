@@ -29,12 +29,22 @@ ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
 SUPABASE_URL = "https://trnlloofjclevdndwgkb.supabase.co"
 
+SUPABASE_PUBLISHABLE_KEY = os.getenv(
+    "SUPABASE_PUBLISHABLE_KEY",
+    "sb_publishable_ccRQVjOPNr-LfKdXOrm_1g_Qj4OcY5G"
+)
+
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
+
 
 if not TOKEN:
     raise ValueError("CLOUDFLARE_API_TOKEN missing")
 
 if not ACCOUNT_ID:
     raise ValueError("CLOUDFLARE_ACCOUNT_ID missing")
+
+if not SUPABASE_SECRET_KEY:
+    raise ValueError("SUPABASE_SECRET_KEY missing")
 
 
 MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
@@ -151,7 +161,6 @@ def verify_supabase_user(request: Request):
             detail="Authentication required."
         )
 
-
     if not authorization.startswith("Bearer "):
 
         raise HTTPException(
@@ -159,12 +168,10 @@ def verify_supabase_user(request: Request):
             detail="Invalid authorization header."
         )
 
-
     access_token = authorization.split(
         " ",
         1
     )[1].strip()
-
 
     if not access_token:
 
@@ -173,18 +180,16 @@ def verify_supabase_user(request: Request):
             detail="Missing access token."
         )
 
-
     try:
 
         response = requests.get(
             f"{SUPABASE_URL}/auth/v1/user",
             headers={
                 "Authorization": f"Bearer {access_token}",
-                "apikey": "sb_publishable_ccRQVjOPNr-LfKdXOrm_1g_Qj4OcY5G"
+                "apikey": SUPABASE_PUBLISHABLE_KEY
             },
             timeout=15
         )
-
 
     except requests.RequestException:
 
@@ -193,14 +198,12 @@ def verify_supabase_user(request: Request):
             detail="Authentication service unavailable."
         )
 
-
     if response.status_code != 200:
 
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired session."
         )
-
 
     try:
 
@@ -213,7 +216,6 @@ def verify_supabase_user(request: Request):
             detail="Invalid authentication response."
         )
 
-
     if not user.get("id"):
 
         raise HTTPException(
@@ -221,8 +223,221 @@ def verify_supabase_user(request: Request):
             detail="Invalid user."
         )
 
-
     return user
+
+
+# =========================
+# CREDITS / PROFILES
+# =========================
+
+def supabase_admin_headers():
+
+    return {
+        "apikey": SUPABASE_SECRET_KEY,
+        "Authorization": f"Bearer {SUPABASE_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def get_or_create_profile(user_id: str):
+
+    headers = supabase_admin_headers()
+
+    url = f"{SUPABASE_URL}/rest/v1/profiles"
+
+    try:
+
+        response = requests.get(
+            url,
+            headers=headers,
+            params={
+                "user_id": f"eq.{user_id}",
+                "select": "user_id,credits,is_admin"
+            },
+            timeout=15,
+        )
+
+    except requests.RequestException:
+
+        raise HTTPException(
+            status_code=503,
+            detail="Credits service unavailable."
+        )
+
+    if not response.ok:
+
+        print(
+            "SUPABASE PROFILE READ ERROR:",
+            response.status_code,
+            response.text[:1000]
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to read credits."
+        )
+
+    rows = response.json()
+
+    if rows:
+
+        profile = rows[0]
+
+        return {
+            "user_id": profile["user_id"],
+            "credits": int(profile.get("credits") or 0),
+            "is_admin": bool(profile.get("is_admin")),
+        }
+
+    # New authenticated users automatically
+    # receive 3 free render credits.
+
+    new_profile = {
+        "user_id": user_id,
+        "credits": 3,
+        "is_admin": False
+    }
+
+    try:
+
+        response = requests.post(
+            url,
+            headers={
+                **headers,
+                "Prefer": "return=representation"
+            },
+            json=new_profile,
+            timeout=15,
+        )
+
+    except requests.RequestException:
+
+        raise HTTPException(
+            status_code=503,
+            detail="Credits service unavailable."
+        )
+
+    if not response.ok:
+
+        print(
+            "SUPABASE PROFILE CREATE ERROR:",
+            response.status_code,
+            response.text[:1000]
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to create credits profile."
+        )
+
+    rows = response.json()
+
+    profile = (
+        rows[0]
+        if rows
+        else new_profile
+    )
+
+    return {
+        "user_id": profile["user_id"],
+        "credits": int(profile.get("credits") or 0),
+        "is_admin": bool(profile.get("is_admin")),
+    }
+
+
+def deduct_credit_after_success(
+    user_id: str,
+    current_credits: int
+):
+
+    new_credits = max(
+        0,
+        current_credits - 1
+    )
+
+    headers = supabase_admin_headers()
+
+    url = f"{SUPABASE_URL}/rest/v1/profiles"
+
+    try:
+
+        response = requests.patch(
+            url,
+            headers={
+                **headers,
+                "Prefer": "return=representation"
+            },
+            params={
+                "user_id": f"eq.{user_id}",
+                "credits": f"eq.{current_credits}",
+                "is_admin": "eq.false",
+            },
+            json={
+                "credits": new_credits
+            },
+            timeout=15,
+        )
+
+    except requests.RequestException:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Render succeeded, but the "
+                "credits service is unavailable."
+            )
+        )
+
+    if not response.ok:
+
+        print(
+            "SUPABASE CREDIT UPDATE ERROR:",
+            response.status_code,
+            response.text[:1000]
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Render succeeded, but "
+                "credit update failed."
+            )
+        )
+
+    rows = response.json()
+
+    if not rows:
+
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Credit balance changed during "
+                "this render. Please try again."
+            )
+        )
+
+    return new_credits
+
+
+# =========================
+# CURRENT USER / CREDITS
+# =========================
+
+@app.get("/me")
+def me(request: Request):
+
+    user = verify_supabase_user(request)
+
+    profile = get_or_create_profile(
+        user["id"]
+    )
+
+    return {
+        "user_id": user["id"],
+        "credits": profile["credits"],
+        "is_admin": profile["is_admin"],
+        "unlimited": profile["is_admin"],
+    }
 
 
 # =========================
@@ -242,15 +457,35 @@ async def render(
 
     user = verify_supabase_user(request)
 
+    user_id = user["id"]
+
+
+    # -------------------------
+    # CREDITS CHECK
+    # -------------------------
+
+    profile = get_or_create_profile(
+        user_id
+    )
+
+    # Admin accounts have unlimited renders.
+
+    if (
+        not profile["is_admin"]
+        and profile["credits"] <= 0
+    ):
+
+        raise HTTPException(
+            status_code=402,
+            detail="No render credits remaining."
+        )
+
 
     # -------------------------
     # RATE LIMIT
     # -------------------------
 
-    user_id = user["id"]
-
     current_time = time.time()
-
 
     if user_id in last_request_time:
 
@@ -259,14 +494,12 @@ async def render(
             last_request_time[user_id]
         )
 
-
         if elapsed_time < RATE_LIMIT_SECONDS:
 
             remaining_seconds = int(
                 RATE_LIMIT_SECONDS -
                 elapsed_time
             ) + 1
-
 
             raise HTTPException(
                 status_code=429,
@@ -286,7 +519,6 @@ async def render(
 
         image_bytes = await image.read()
 
-
         if not image_bytes:
 
             raise HTTPException(
@@ -304,11 +536,9 @@ async def render(
             f"{ACCOUNT_ID}/ai/run/{MODEL}"
         )
 
-
         headers = {
             "Authorization": f"Bearer {TOKEN}"
         }
-
 
         files = {
             "input_image_0": (
@@ -323,8 +553,10 @@ async def render(
         # USER PROMPT
         # -------------------------
 
-        user_request = prompt.strip()[:1000]
-
+        user_request = (
+            prompt
+            .strip()[:1000]
+        )
 
         final_prompt = (
             PROMPT
@@ -337,7 +569,6 @@ async def render(
             + "walls, openings, furniture positions, "
             + "proportions or layout."
         )
-
 
         data = {
             "prompt": final_prompt,
@@ -358,7 +589,6 @@ async def render(
             timeout=240
         )
 
-
         if not response.ok:
 
             print(
@@ -367,15 +597,12 @@ async def render(
                 response.text[:2000]
             )
 
-
             raise HTTPException(
                 status_code=502,
                 detail="AI generation service failed."
             )
 
-
         result = response.json()
-
 
         if not result.get("success"):
 
@@ -384,17 +611,14 @@ async def render(
                 detail="Cloudflare generation failed."
             )
 
-
         result_data = result.get(
             "result",
             {}
         )
 
-
         image_b64 = result_data.get(
             "image"
         )
-
 
         if not image_b64:
 
@@ -406,14 +630,12 @@ async def render(
                 )
             )
 
-
         if image_b64.startswith("data:"):
 
             image_b64 = image_b64.split(
                 ",",
                 1
             )[1]
-
 
         try:
 
@@ -425,9 +647,11 @@ async def render(
 
             raise HTTPException(
                 status_code=502,
-                detail="Cloudflare returned an invalid image."
+                detail=(
+                    "Cloudflare returned "
+                    "an invalid image."
+                )
             )
-
 
         if not output_bytes:
 
@@ -437,13 +661,40 @@ async def render(
             )
 
 
-        # Only start rate limit after
+        # -------------------------
+        # DEDUCT CREDIT
+        # -------------------------
+
+        # Credit is deducted ONLY after
+        # Cloudflare successfully generated
+        # and returned a valid image.
+        #
+        # Admin accounts are unlimited
+        # and never lose credits.
+
+        if not profile["is_admin"]:
+
+            deduct_credit_after_success(
+                user_id,
+                profile["credits"]
+            )
+
+
+        # -------------------------
+        # START RATE LIMIT
+        # -------------------------
+
+        # Rate limit also starts only after
         # a successful generation.
 
         last_request_time[user_id] = (
             current_time
         )
 
+
+        # -------------------------
+        # RETURN IMAGE
+        # -------------------------
 
         return StreamingResponse(
             io.BytesIO(output_bytes),
@@ -465,7 +716,6 @@ async def render(
             "RENDER ERROR:",
             str(e)
         )
-
 
         raise HTTPException(
             status_code=500,
